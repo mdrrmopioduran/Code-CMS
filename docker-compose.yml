@@ -1,0 +1,89 @@
+# Docker Compose configuration for Modern CMS
+version: '3.8'
+
+services:
+  # Frontend (React CMS)
+  cms-frontend:
+    build: .
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - cms-backend
+      - mysql
+    networks:
+      - cms-network
+
+  # Backend API (Node.js/Express)
+  cms-backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=cms_database
+      - DB_USER=cms_user
+      - DB_PASSWORD=cms_password
+      - JWT_SECRET=your-super-secret-jwt-key
+      - UPLOAD_PATH=/uploads
+    volumes:
+      - uploads:/uploads
+      - ./backend:/app
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - cms-network
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_DATABASE=cms_database
+      - MYSQL_USER=cms_user
+      - MYSQL_PASSWORD=cms_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./src/lib/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    networks:
+      - cms-network
+
+  # Redis for caching and sessions
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - cms-network
+
+  # phpMyAdmin for database management
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    ports:
+      - "8080:80"
+    environment:
+      - PMA_HOST=mysql
+      - PMA_PORT=3306
+      - PMA_USER=root
+      - PMA_PASSWORD=root_password
+    depends_on:
+      - mysql
+    networks:
+      - cms-network
+
+networks:
+  cms-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:
+  uploads:

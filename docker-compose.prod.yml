@@ -1,0 +1,118 @@
+# Production Docker Compose for Modern CMS
+version: '3.8'
+
+services:
+  # Frontend (React CMS)
+  cms-frontend:
+    build: 
+      context: .
+      dockerfile: Dockerfile.prod
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - ./ssl:/etc/ssl/certs
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - cms-backend
+      - mysql
+    networks:
+      - cms-network
+    restart: unless-stopped
+
+  # Backend API (Node.js/Express)
+  cms-backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=cms_production
+      - DB_USER=cms_user
+      - DB_PASSWORD=${DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - UPLOAD_PATH=/uploads
+      - REDIS_HOST=redis
+    volumes:
+      - uploads:/uploads
+      - ./logs/app:/app/logs
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - cms-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=cms_production
+      - MYSQL_USER=cms_user
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./src/lib/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./backups:/backups
+    networks:
+      - cms-network
+    restart: unless-stopped
+    command: --innodb-buffer-pool-size=1G --max-connections=200
+
+  # Redis for caching and sessions
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - cms-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  # Backup service
+  backup:
+    image: mysql:8.0
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_USER=cms_user
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=cms_production
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh
+    networks:
+      - cms-network
+    restart: "no"
+    entrypoint: ["sh", "/backup.sh"]
+
+  # Monitoring
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_SCHEDULE=0 2 * * *
+    restart: unless-stopped
+
+networks:
+  cms-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads:
+    driver: local
