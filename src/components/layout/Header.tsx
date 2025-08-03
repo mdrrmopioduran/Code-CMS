@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { useCMSStore } from '../../store/cmsStore';
-import { useTheme } from 'next-themes';
+import { useTheme } from '../theme-provider';
 
 interface HeaderProps {
   title?: string;

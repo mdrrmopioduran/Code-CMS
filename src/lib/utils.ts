@@ -1,7 +1,7 @@
 /**
  * Utility functions for the CMS application
  */
-import { type ClassValue, clsx } from "clsx";
+import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 /**

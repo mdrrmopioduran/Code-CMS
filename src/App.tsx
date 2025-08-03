@@ -1,7 +1,7 @@
 /**
  * Main application component with routing and authentication
  */
-import { HashRouter, Route, Routes } from 'react-router';
+import { HashRouter, Route, Routes } from 'react-router-dom';
 import { useEffect } from 'react';
 import { ThemeProvider } from './components/theme-provider';
 import { useCMSStore } from './store/cmsStore';
