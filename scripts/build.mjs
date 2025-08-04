@@ -3,6 +3,7 @@ import { rimraf } from 'rimraf'
 import stylePlugin from 'esbuild-style-plugin'
 import autoprefixer from 'autoprefixer'
 import tailwindcss from 'tailwindcss'
+import { spawn } from 'child_process'
 
 const args = process.argv.slice(2)
 const isProd = args[0] === '--production'
@@ -42,9 +43,19 @@ if (isProd) {
 } else {
   const ctx = await esbuild.context(esbuildOpts)
   await ctx.watch()
-  const { hosts, port } = await ctx.serve()
+  
+  // Start static file server using serve package
+  const server = spawn('npx', ['serve', 'dist', '-l', '3000'], {
+    stdio: 'inherit',
+    shell: true
+  })
+  
   console.log(`Running on:`)
-  hosts.forEach((host) => {
-    console.log(`http://${host}:${port}`)
+  console.log(`http://localhost:3000`)
+  
+  // Handle server shutdown
+  process.on('SIGINT', () => {
+    server.kill()
+    process.exit()
   })
 }
